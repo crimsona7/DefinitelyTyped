@@ -199,6 +199,16 @@ declare namespace H {
          */
         getObjects(): H.map.Object[];
 
+
+        /**
+         * To obtain a list of map objects which intersect the provided area.
+         * @param area {H.geo.Polygon} - The polygonal geographical area where to obtain the map objects. Since the polygon's legs are not projected, for some areas covering 
+         * several latitude degrees the set of objects retrieved is not guaranteed to be what is shown in the map.
+         * @param callback {function(Array.<H.map.Object>)} - The function to invoke when the request operation has been finished. It gets a list of all found objects as argument.
+         * @param opt_options {H.Map.GetObjectsWithinOptions=} - Additional options to filter the obtained map objects
+         */
+        getObjectsWithin(area: H.geo.Polygon, callback: (objs: Array<H.map.Object>) => any, opt_options?: H.Map.GetObjectsWithinOptions)
+
         /**
          * This method adds an array of objects or an object group to the map.
          * @param mapObjects {Array<!H.map.Object>}
@@ -307,6 +317,20 @@ declare namespace H {
             padding?: H.map.ViewPort.Padding;
             fixedCenter?: boolean;
             noWrap?: boolean;
+        }
+
+
+        /**
+         * This type defines options that can be used for {@link H.Map.prototype#getObjectsWithin} calls.
+         * @property zoom {number=} - The optional zoom level for which the objects are requested. The default value is the map's current zoom level.
+         * @property visibleOnly {boolean=} - Indicates whether only objects that are effectively visible are requested. The default value is true.
+         * @property types {H.math.BitMask.<H.map.Object.Type>} - To specify which types of map objects are requested. 
+         * For example: types: {@link H.map.Object.Type.MARKER} | {@link H.map.Object.Type.SPATIAL} The default value is {@link H.map.Object.Type.ANY}.
+         */
+        interface GetObjectsWithinOptions {
+            zoom?: number;
+            visibleOnly?: boolean;
+            types: H.math.BitMask;
         }
     }
 
@@ -2087,15 +2111,21 @@ declare namespace H {
              * @property hitArea {H.map.HitArea=} - The area to use for hit detection, default is the whole rectangular area
              * @property asCanvas {H.map.HitArea=} - Indicates whether a non canvas bitmap is converted into a canvas, default is true. The conversion improves the rendering performance but it could
              * also cause a higher memory consumption.
-             * @property crossOrigin {boolean} - Specifies whether to use anonynous Cross-Origin Resource Sharing (CORS) when fetching an image to prevent resulting canvas from tainting, default is
-             * false. The option is ignored by IE9-10.
+             * @property crossOrigin {string | null=} - The value to use for the crossOrigin attribute of the icon image, if omitted the attribute is set to "anonymous". 
+             * For more details see {@see <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_enabled_image">MDN web docs</a>}.
+             * @property stickHeight {number=} - When specified, the icon is elevated in the screen space's Y axis according to the current tilt angle of the map. A straight line
+             * (stick) is rendered to connect the elevated and the original anchor points. The specified value must be positive and indicates the stick's maximum height in pixels 
+             * on a 90° tilt. On tilt angle of 0° the icon is not elevated and therefore the stick not visible.
+             * @property stickColor {string=} - The color of the line (stick), the default is "white".
              */
             interface Options {
                 size?: H.math.ISize | number;
                 anchor?: H.math.IPoint;
-                hitArea?: H.map.HitArea;
-                asCanvas?: H.map.HitArea;
-                crossOrigin: boolean;
+                hitArea?: H.map.HitArea;                
+                crossOrigin?: string | null;
+                stickHeight?: number;
+                stickColor?: string;
+
             }
         }
 
@@ -2835,6 +2865,8 @@ declare namespace H {
          * @property fillColor {string} - The filling color in CSS syntax, default is 'rgba(0, 85, 170, 0.4)'.
          * @property lineWidth {number} - The width of the line in pixels, default is 2.
          * @property lineCap {H.map.SpatialStyle.LineCap} - The style of the end caps for a line, default is 'round'.
+         * @property lineHeadCap {H.map.SpatialStyle.LineCap} - The cap type of the head of a solid line or, in case of a dashed line, for the head of each dash. If not specified then the [lineCap] {@link H.map.SpatialStyle.lineCap} property is used.
+         * @property lineTailCap {H.map.SpatialStyle.LineCap} - The cap type of the tail of a solid line or, in case of a dashed line, for the tail of each dash. If not specified then the [lineCap] {@link H.map.SpatialStyle.lineCap} property is used.
          * @property lineJoin {H.map.SpatialStyle.LineJoin} - The type of corner created, when two lines meet, default is 'miter'.
          * @property miterLimit {number} - The miter length is the distance between the inner corner and the outer corner where two lines meet. The default is 10.
          * @property lineDash {Array<number>} - The line dash pattern as an even numbered list of distances to alternately produce a line and a space. The default is [].
@@ -2868,6 +2900,8 @@ declare namespace H {
             fillColor: string;
             lineWidth: number;
             lineCap: H.map.SpatialStyle.LineCap;
+            lineHeadCap: H.map.SpatialStyle.LineCap;
+            lineTailCap: H.map.SpatialStyle.LineCap;
             lineJoin: H.map.SpatialStyle.LineJoin;
             miterLimit: number;
             lineDash: number[];
@@ -2880,7 +2914,7 @@ declare namespace H {
             /**
              * The style of the end caps for a line, one of 'butt', 'round' or 'square'.
              */
-            type LineCap = 'butt' | 'round' | 'square';
+            type LineCap = 'butt' | 'round' | 'square' | 'arrow-head' | 'arrow-tail'
 
             /**
              * The type of corner created, when two lines meet, one of 'round', 'bevel' or 'miter'.
@@ -2898,6 +2932,8 @@ declare namespace H {
              * @property lineDash {Array<number>} - The line dash pattern as an even numbered list of distances to alternately produce a line and a space. If the browser doesn't support this feature
              * this style property is ignored.
              * @property lineDashOffset {number=} - The phase offset of the line dash pattern
+             * @property lineHeadCap {H.map.SpatialStyle.LineCap=} - The cap type of the head of a solid line or, in case of a dashed line, for the head of each dash.
+             * @property lineTailCap {H.map.SpatialStyle.LineCap=} - The cap type of the tail of a solid line or, in case of a dashed line, for the tail of each dash.
              */
             interface Options {
                 strokeColor?: string;
@@ -2908,6 +2944,8 @@ declare namespace H {
                 miterLimit?: number;
                 lineDash?: number[];
                 lineDashOffset?: number;
+                lineHeadCap?: H.map.SpatialStyle.LineCap;
+                lineTailCap?: H.map.SpatialStyle.LineCap;
             }
         }
 
@@ -4744,6 +4782,20 @@ declare namespace H {
     /***** service *****/
     namespace service {
         /**
+         * This class is an abstract service with a basic functionality of requesting the url configured by the passed options and 
+         * configured default options implemented by the subclasses.
+         */
+        abstract class Service extends H.util.EventTarget {
+            /**
+             * 
+             * @param constuctor {function(Object=) => Service } - Reference to the child class constructor
+             * @param opt_options {Object=} - Optional configuration options.
+             */
+            constructor(constuctor: (opt_options?: Object) => Service, opt_options? :Object)
+        }
+
+
+        /**
          * Abstract rest service class
          */
         class AbstractRestService implements H.service.IConfigurable {
@@ -5169,6 +5221,118 @@ declare namespace H {
         }
 
         /**
+         * This class encapsulates the Geocoding and Search API as a service stub.
+         * It's not allowed to call the constructor directly (an IllegalOperationError is thrown). 
+         * Instead an instance of this Service can be retrieved by calling the factory method H.service.Platform#getSearchService on a platform instance.
+         */
+
+        class SearchService extends H.service.Service {
+
+            /**
+             * Constructor
+             * @param opt_options {H.service.SearchService.Options=} - Configuration options for the Search service
+             */
+            constuctor(opt_options?: H.service.SearchService.Options)
+
+            /**
+             * The property name to use when specifying options for this service within the H.service.Platform.Options#servicesConfig.
+             */
+            static CONFIG_KEY: string
+
+
+            /**
+             * This method improves the user's search experience by allowing submittal of free-form, incomplete and misspelled addresses or place names to the endpoint 
+             * of the {@see <a href="https://developer.here.com/documentation/geocoding-search-api/">Geocoding and Search API</a>} 
+             * Please refer to the /autosuggest {@see <a href="https://developer.here.com/documentation/geocoding-search-api/dev_guide/topics/endpoint-autosuggest-brief.html">endpoint documentation</a>} 
+             * for information on available parameters and the response object structure.
+             * 
+             * @param params {H.service.ServiceParameters} - Contains service parameters to be sent with the request.
+             * @param onResult {function(H.service.ServiceResult)} - A callback function to be called once the API provides a response to the request.
+             * @param onError {function(Error)} - A callback function to be called if a communication error occurs during the request.
+             * @returns {H.util.ICancelable}
+             */
+            autosuggest(params: H.service.ServiceParameters, onResult: (result: H.service.ServiceResult) => void, onError:(error: Error) => void): H.util.ICancelable
+
+            /**
+             * This method uses the /browse endpoint of the {@see <a href="https://developer.here.com/documentation/geocoding-search-api/">Geocoding and Search API</a>} 
+             * and returns a structured search result by filtering items by category and name at a given geo-position in a radius of 250km. 
+             * Items returned are places, streets or localities, ranked by increasing distance.
+             * Please refer to the /browse {@see <a href="https://developer.here.com/documentation/geocoding-search-api/dev_guide/topics/endpoint-browse-brief.html">endpoint documentation</a>} for 
+             * information on available parameters and the response object structure.
+             * 
+             * @param params {H.service.ServiceParameters} - Contains service parameters to be sent with the request.
+             * @param onResult {function(H.service.ServiceResult)} - A callback function to be called once the API provides a response to the request.
+             * @param onError {function(Error)} - A callback function to be called if a communication error occurs during the request. 
+             * @returns {H.util.ICancelable}
+             */
+            browse(params: H.service.ServiceParameters, onResult: (result: H.service.ServiceResult) => void, onError:(error: Error) => void): H.util.ICancelable
+
+            /**
+             * This method simplifies searching for places. The user submits a free-form text request that returns candidate items (places and addresses related) 
+             * in the order of intent matching relevance.
+             * Please refer to the /discover {@see <a href="https://developer.here.com/documentation/geocoding-search-api/dev_guide/topics/endpoint-discover-brief.html">endpoint documentation</a>}
+             * for information on available parameters and the response object structure.
+             * @param params {H.service.ServiceParameters} - Contains service parameters to be sent with the request.
+             * @param onResult {function(H.service.ServiceResult)} - A callback function to be called once the API provides a response to the request.
+             * @param onError {function(Error)} - A callback function to be called if a communication error occurs during the request.
+             * @returns {H.util.ICancelable}  
+             */
+            discover(params: H.service.ServiceParameters, onResult: (result: H.service.ServiceResult) => void, onError:(error: Error) => void): H.util.ICancelable
+
+            /**
+             * This method can be used to find the geographic coordinates of a known address, place, locality or administrative area, even if the query is incomplete or partly incorrect. 
+             * It also returns a complete postal address string and address details. It sends a geocoding request to the /geocode endpoint of the {@see <a href="https://developer.here.com/documentation/geocoding-search-api/">Geocoding and Search API</a>}.
+             * Please refer to the /geocode {@see <a href="https://developer.here.com/documentation/geocoding-search-api/dev_guide/topics/endpoint-geocode-brief.html">endpoint documentation</a>} 
+             * for information on available parameters and the response object structure.
+             * @param params {H.service.ServiceParameters} - Contains service parameters to be sent with the request.
+             * @param onResult {function(H.service.ServiceResult)} - A callback function to be called once the API provides a response to the request.
+             * @param onError {function(Error)} - A callback function to be called if a communication error occurs during the request.
+             * @returns {H.util.ICancelable} 
+             */
+            geocode(params: H.service.ServiceParameters, onResult: (result: H.service.ServiceResult) => void, onError:(error: Error) => void): H.util.ICancelable
+            
+            /**
+             * Every place or location object known by HERE has a location identifier or "ID". This method sends a lookup request by ID to the /lookup endpoint of the 
+             * {@see <a href="https://developer.here.com/documentation/geocoding-search-api/">Geocoding and Search API</a>}.
+             * Please refer to the /lookup {@see <a href="https://developer.here.com/documentation/geocoding-search-api/dev_guide/topics/endpoint-lookup-brief.html">endpoint documentation</a>} for information on available parameters and the response object structure.
+             * @param params {H.service.ServiceParameters} - Contains service parameters to be sent with the request.
+             * @param onResult {function(H.service.ServiceResult)} - A callback function to be called once the API provides a response to the request.
+             * @param onError {function(Error)} - A callback function to be called if a communication error occurs during the request. 
+             * @returns {H.util.ICancelable} 
+             */
+            lookup(params: H.service.ServiceParameters, onResult: (result: H.service.ServiceResult) => void, onError:(error: Error) => void): H.util.ICancelable
+
+            /**
+             * This method can be used to find the nearest address to specific geographic coordinates. It sends a reverse geocoding request to the /revgeocode endpoint of
+             * the {@see <a href="https://developer.here.com/documentation/geocoding-search-api/">Geocoding and Search API</a>}.
+             * Please refer to the /revgeocode {@see <a href="https://developer.here.com/documentation/geocoding-search-api/dev_guide/topics/endpoint-reverse-geocode-brief.html">endpoint documentation</a>} for information on available parameters and the response object structure.
+             * @param params {H.service.ServiceParameters} - Contains service parameters to be sent with the request.
+             * @param onResult {function(H.service.ServiceResult)} - A callback function to be called once the API provides a response to the request.
+             * @param onError {function(Error)} - A callback function to be called if a communication error occurs during the request. 
+             * @returns {H.util.ICancelable}  
+             */
+            reverseGeocode(params: H.service.ServiceParameters, onResult: (result: H.service.ServiceResult) => void, onError:(error: Error) => void): H.util.ICancelable
+
+        }
+        
+
+        namespace SearchService {
+            /**
+             * @property baseUrl {H.service.Url=} - he base URL of the Search service. 
+             * If supplied, it overrides all defaults (either coming from platform or service internals) including authentication params.
+             * @property subDomain {string=} - The subdomain of the Search service relative to the base URL.
+             * @property path {string=} - The path of the service.
+             * @property headers {Object=} - A map of HTTP headers to be sent with each request made by the service.
+             */
+            interface Options {
+                baseUrl?: H.service.Url
+                subDomain?: string
+                path?: string
+                headers?: Object
+            }
+        }
+
+        /**
          * The Platform class represents central class from which all other service stubs are created. It also contains the shared settings to be passed to the individual service stubs, for example
          * the root URL of the platform, application credentials, etc.
          */
@@ -5262,6 +5426,7 @@ declare namespace H {
             getRoutingService(opt_options?: H.service.RoutingService.Options): H.service.RoutingService;
 
             /**
+             * @deprecated
              * This method returns an instance of H.service.GeocodingService to query the Geocoder API
              * @param opt_options {H.service.GeocodingService.Options=} - an optional set of options for the new geocoding service to connect to
              * @returns {H.service.GeocodingService} - a new geocoding service instance
@@ -5269,10 +5434,17 @@ declare namespace H {
             getGeocodingService(opt_options?: H.service.GeocodingService.Options): H.service.GeocodingService;
 
             /**
+             * @deprecated
              * This method returns an instance of H.service.PlacesService to query the Places API.
              * @returns {H.service.PlacesService} - a new places service instance
              */
             getPlacesService(): H.service.PlacesService;
+
+            /**
+             * To create a new instance of H.service.SearchService to query the Geocoding and Search API endpoints.
+             * @param opt_options {H.service.SearchService.Options=} - Configuration options for the Search service
+             */
+            getSearchService(opt_options?: H.service.SearchService.Options): H.service.SearchService
 
             /**
              * This method returns an instance of H.service.EnterpriseRoutingService to query the Enterprise Routing API.
@@ -6291,12 +6463,12 @@ declare namespace H {
         namespace MapSettingsControl {
             /**
              * The map type entry is an object containing a display name and a map type object to which it refers.
-             * @property name {string} - label which describes the map type
-             * @property mapType {H.service.MapType} - reference to map type
+             * @property label {string} - A label which describes the map type
+             * @property mapType {H.map.layer.Layer | undefined} - A reference to the layer to show on the map. When it is not specified entry is rendered as disabled.
              */
             interface Entry {
-                name: string;
-                mapType: H.service.MapType;
+                label: string;
+                layer: H.map.layer.Layer | undefined;
             }
 
             /**
